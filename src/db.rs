@@ -1,6 +1,6 @@
+use anyhow::{Result, anyhow};
+use serde_json;
 use std::fs;
-
-use anyhow::Result;
 
 use crate::models::{DBState, Epic, Story, Status};
 
@@ -14,31 +14,111 @@ impl JiraDatabase {
     }
 
     pub fn read_db(&self) -> Result<DBState> {
-        todo!()
+        let db_state = self.database.read_db()?;
+
+        Ok(db_state)
     }
     
     pub fn create_epic(&self, epic: Epic) -> Result<u32> {
-        todo!()
+        let mut db_state = self.read_db()?;
+
+        db_state.last_item_id += 1;
+        db_state.epics.insert(db_state.last_item_id, epic);
+
+        self.database.write_db(&db_state)?;
+
+        Ok(db_state.last_item_id)
     }
     
     pub fn create_story(&self, story: Story, epic_id: u32) -> Result<u32> {
-        todo!()
+        let mut db_state = self.read_db()?;
+
+        db_state.last_item_id += 1;
+        db_state.stories.insert(db_state.last_item_id, story);
+
+        db_state.epics.get_mut(&epic_id)
+            .ok_or(anyhow!("Story Creation Error: Invalid epic_id"))?
+            .stories.push(db_state.last_item_id);
+
+        self.database.write_db(&db_state)?;
+
+        Ok(db_state.last_item_id)
     }
     
     pub fn delete_epic(&self, epic_id: u32) -> Result<()> {
-        todo!()
+        let mut db_state = self.read_db()?;
+
+        let story_ids_in_epic = &db_state.epics.get(&epic_id)
+            .ok_or(anyhow!("Epic Deletion Error: Invalid epic_id - Could not find epic_id"))?
+            .stories;
+
+        for story_id in story_ids_in_epic {
+            db_state.stories.remove(&*story_id)
+                .ok_or(anyhow!("Epic Deletion Error: Failed during stories deletion"))?;
+        }
+
+        db_state.epics.remove(&epic_id)
+            .ok_or(anyhow!("Epic Deletion Error: Invalid epic_id - Could not remove epic_id"))?;
+
+        self.database.write_db(&db_state)?;
+
+        Ok(())
     }
     
     pub fn delete_story(&self,epic_id: u32, story_id: u32) -> Result<()> {
-        todo!()
+        let mut db_state = self.read_db()?;
+
+        // Check if Story is in Epic
+        let story_is_in_epic = db_state.epics.get(&epic_id)
+            .ok_or(anyhow!("Story Deletion Error: Invalid epic_id - Could not find epic_id"))?
+            .stories
+            .contains(&story_id);
+
+        if !story_is_in_epic {
+            return Err(anyhow!("Story Deletion Error: Invalid epic_id - Could not find epic_id"));
+        }
+
+        // Delete Story from Epic
+        db_state.epics.get_mut(&epic_id)
+            .ok_or(anyhow!("Story Deletion Error: Invalid epic_id - Could not find epic_id"))?
+            .stories.pop_if(|x| *x == story_id);
+
+        // Delete Story from Stories
+        db_state.stories.remove(&story_id)
+            .ok_or(anyhow!("Story Deletion Error: Invalid epic_id - Could not find story_id"))?;
+
+        // Write database
+        self.database.write_db(&db_state)?;
+
+        Ok(())
     }
     
     pub fn update_epic_status(&self, epic_id: u32, status: Status) -> Result<()> {
-        todo!()
+        let mut db_state = self.read_db()?;
+
+        // Update Epic status
+        db_state.epics.get_mut(&epic_id)
+            .ok_or(anyhow!("Update Epic Error: Invalid epic_id - Could not find epic_id: {epic_id}"))?
+            .status = status;
+
+        // Write database
+        self.database.write_db(&db_state)?;
+
+        Ok(())
     }
     
     pub fn update_story_status(&self, story_id: u32, status: Status) -> Result<()> {
-        todo!()
+        let mut db_state = self.read_db()?;
+
+        // Update Story status
+        db_state.stories.get_mut(&story_id)
+            .ok_or(anyhow!("Update Story Error: Invalid story_id - Could not find story_id: {story_id}"))?
+            .status = status;
+
+        // Write database
+        self.database.write_db(&db_state)?;
+
+        Ok(())
     }
 }
 
@@ -53,13 +133,16 @@ struct JSONFileDatabase {
 
 impl Database for JSONFileDatabase {
     fn read_db(&self) -> Result<DBState> {
-        let db_content = fs::read_to_string(&self.file_path)?;
-        let parsed: DBState = serde_json::from_str(&db_content)?;
-        Ok(parsed)
+        let json_data = fs::read_to_string(&self.file_path)?;
+        let json_data: DBState = serde_json::from_str(&json_data)?;
+
+        Ok(json_data)
     }
 
     fn write_db(&self, db_state: &DBState) -> Result<()> {
-        fs::write(&self.file_path, &serde_json::to_vec(db_state)?)?;
+        let json_data = serde_json::to_string_pretty(&db_state)?;
+        fs::write(&self.file_path, json_data)?;
+
         Ok(())
     }
 }
@@ -81,14 +164,12 @@ pub mod test_utils {
 
     impl Database for MockDB {
         fn read_db(&self) -> Result<DBState> {
-            // TODO: fix this error by deriving the appropriate traits for Story
             let state = self.last_written_state.borrow().clone();
             Ok(state)
         }
 
         fn write_db(&self, db_state: &DBState) -> Result<()> {
             let latest_state = &self.last_written_state;
-            // TODO: fix this error by deriving the appropriate traits for DBState
             *latest_state.borrow_mut() = db_state.clone();
             Ok(())
         }
@@ -102,10 +183,9 @@ mod tests {
 
     #[test]
     fn create_epic_should_work() {
-        let db = JiraDatabase { database: Box::new(MockDB::new()) };
+        let db: JiraDatabase = JiraDatabase { database: Box::new(MockDB::new()) };
         let epic = Epic::new("".to_owned(), "".to_owned());
 
-        // TODO: fix this error by deriving the appropriate traits for Epic
         let result = db.create_epic(epic.clone());
         
         assert_eq!(result.is_ok(), true);
@@ -142,7 +222,6 @@ mod tests {
 
         let epic_id = result.unwrap();
 
-        // TODO: fix this error by deriving the appropriate traits for Story
         let result = db.create_story(story.clone(), epic_id);
         assert_eq!(result.is_ok(), true);
 
@@ -191,7 +270,9 @@ mod tests {
         let expected_last_id = 2;
 
         assert_eq!(db_state.last_item_id, expected_last_id);
+        println!("db_state.epics.get(&epic_id): {:?}", db_state.epics.get(&epic_id));
         assert_eq!(db_state.epics.get(&epic_id), None);
+        println!("db_state.stories.get(&story_id): {:?}", db_state.stories.get(&story_id));
         assert_eq!(db_state.stories.get(&story_id), None);
     }
 
