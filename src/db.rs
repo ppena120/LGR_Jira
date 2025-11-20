@@ -1,16 +1,18 @@
 use anyhow::{Result, anyhow};
 use serde_json;
-use std::fs;
+use std::{collections::HashMap, fs};
 
 use crate::models::{DBState, Epic, Story, Status};
 
 pub struct JiraDatabase {
-    database: Box<dyn Database>
+    pub database: Box<dyn Database>
 }
 
 impl JiraDatabase {
     pub fn new(file_path: String) -> Self {
-        todo!()
+        Self {
+            database: Box::new(JSONFileDatabase{file_path})
+        }
     }
 
     pub fn read_db(&self) -> Result<DBState> {
@@ -122,7 +124,7 @@ impl JiraDatabase {
     }
 }
 
-trait Database {
+pub trait Database {
     fn read_db(&self) -> Result<DBState>;
     fn write_db(&self, db_state: &DBState) -> Result<()>;
 }
@@ -183,7 +185,7 @@ mod tests {
 
     #[test]
     fn create_epic_should_work() {
-        let db: JiraDatabase = JiraDatabase { database: Box::new(MockDB::new()) };
+        let db = JiraDatabase { database: Box::new(MockDB::new()) };
         let epic = Epic::new("".to_owned(), "".to_owned());
 
         let result = db.create_epic(epic.clone());
