@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use itertools::Itertools;
+use itertools::sorted;
 use anyhow::Result;
 use anyhow::anyhow;
 
@@ -20,10 +21,19 @@ pub struct HomePage {
 }
 impl Page for HomePage {
     fn draw_page(&self) -> Result<()> {
+        let db_state = self.db.database.read_db()?;
+
         println!("----------------------------- EPICS -----------------------------");
         println!("     id     |               name               |      status      ");
 
-        // TODO: print out epics using get_column_string(). also make sure the epics are sorted by id
+        // Sort epics by id and print
+        let sorted_keys = sorted(db_state.epics.keys());
+
+        sorted_keys.for_each(|key| {
+            let epic_info = &db_state.epics.get(key).ok_or(anyhow!("Invalid key")).unwrap();
+            let line = format!("{}|{}|{}", get_column_string(&key.to_string(), 12), get_column_string(&epic_info.name, 34), get_column_string(&epic_info.status.to_string(), 18));
+            println!("{}", line);
+        });
 
         println!();
         println!();
@@ -69,7 +79,8 @@ impl Page for EpicDetail {
         println!("------------------------------ EPIC ------------------------------");
         println!("  id  |     name     |         description         |    status    ");
 
-        // TODO: print out epic details using get_column_string()
+        let line = format!("{}|{}|{}|{}", get_column_string(&self.epic_id.to_string(), 6), get_column_string(&epic.name, 14), get_column_string(&epic.description, 29), get_column_string(&epic.status.to_string(), 14));
+        println!("{}", line);
   
         println!();
 
@@ -78,7 +89,14 @@ impl Page for EpicDetail {
 
         let stories = &db_state.stories;
 
-        // TODO: print out stories using get_column_string(). also make sure the stories are sorted by id
+        // Sort stories by id and print
+        let sorted_keys = sorted(stories.keys());
+
+        sorted_keys.for_each(|key| {
+            let story_info = &stories.get(key).ok_or(anyhow!("Invalid key")).unwrap();
+            let line = format!("{}|{}|{}", get_column_string(&key.to_string(), 12), get_column_string(&story_info.name, 34), get_column_string(&story_info.status.to_string(), 18));
+            println!("{}", line);
+        });
 
         println!();
         println!();
@@ -129,7 +147,8 @@ impl Page for StoryDetail {
         println!("------------------------------ STORY ------------------------------");
         println!("  id  |     name     |         description         |    status    ");
         
-        // TODO: print out story details using get_column_string()
+        let line = format!("{}|{}|{}|{}", get_column_string(&self.story_id.to_string(), 6), get_column_string(&story.name, 14), get_column_string(&story.description, 29), get_column_string(&story.status.to_string(), 14));
+        println!("{}", line);
         
         println!();
         println!();
