@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::rc::Rc;
 
 use itertools::Itertools;
@@ -31,7 +32,7 @@ impl Page for HomePage {
 
         sorted_keys.for_each(|key| {
             let epic_info = &db_state.epics.get(key).ok_or(anyhow!("Invalid key")).unwrap();
-            let line = format!("{}|{}|{}", get_column_string(&key.to_string(), 12), get_column_string(&epic_info.name, 34), get_column_string(&epic_info.status.to_string(), 18));
+            let line = format!("{}|{}|{}", get_column_string(&key.to_string(), 12), get_column_string(&epic_info.name, 34), get_column_string(format!("{}", epic_info.status).as_str(), 18));
             println!("{}", line);
         });
 
