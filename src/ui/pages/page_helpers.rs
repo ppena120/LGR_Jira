@@ -1,7 +1,25 @@
+use std::clone;
+
 use ellipse::Ellipse;
 
 pub fn get_column_string(text: &str, width: usize) -> String {
-    todo!() // use the truncate_ellipse function from the ellipse crate
+    let mut col_string = String::new();
+
+    if width == 0 {
+        col_string = "".to_owned();
+    } else if text.is_empty() {
+        col_string = " ".repeat(width).to_owned();
+    } else if width <= 3 {
+        col_string = ".".repeat(width).to_owned();
+    } else if text.len() < width {
+        col_string = format!("{}{}", text, " ".repeat(width-text.len()));
+    } else if text.len() == width {
+        col_string = text.to_owned();
+    } else {
+        col_string = text.truncate_ellipse(width-3).into_owned()
+    }
+    
+    col_string
 }
 
 #[cfg(test)]
