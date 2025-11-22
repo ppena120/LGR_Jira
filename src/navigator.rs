@@ -11,44 +11,63 @@ pub struct Navigator {
 
 impl Navigator {
     pub fn new(db: Rc<JiraDatabase>) -> Self {
-        todo!()
+        Self {
+            pages: vec![Box::new(HomePage{db: db.clone()})],
+            prompts: Prompts::new(),
+            db: db.clone()
+        }
     }
 
     pub fn get_current_page(&self) -> Option<&Box<dyn Page>> {
-        todo!() // this should always return the last element in the pages vector
+        self.pages.last()
     }
 
     pub fn handle_action(&mut self, action: Action) -> Result<()> {
         match action {
             Action::NavigateToEpicDetail { epic_id } => {
-                todo!() // create a new EpicDetail instance and add it to the pages vector
+                let new_page = EpicDetail {
+                    epic_id,
+                    db: self.db.clone()
+                };
+
+                self.pages.push(Box::new(new_page));
             }
             Action::NavigateToStoryDetail { epic_id, story_id } => {
-                todo!() // create a new StoryDetail instance and add it to the pages vector
+                let new_page = StoryDetail {
+                    epic_id,
+                    story_id,
+                    db: self.db.clone()
+                };
+
+                self.pages.push(Box::new(new_page));
             }
             Action::NavigateToPreviousPage => {
-                todo!() // remove the last page from the pages vector
+                self.pages.pop();
             }
             Action::CreateEpic => {
-                todo!() // prompt the user to create a new epic and persist it in the database
+                let epic = (self.prompts.create_epic)();
+                self.db.create_epic(epic).map_err(|_| anyhow!("Failed to create epic"))?;
             }
             Action::UpdateEpicStatus { epic_id } => {
-                todo!() // prompt the user to update status and persist it in the database
+                let status = (self.prompts.update_status)().ok_or(anyhow!("Failed to get user prompt - epic status update"))?;
+                self.db.update_epic_status(epic_id, status).map_err(|_| anyhow!("Failed to update epic status"))?;
             }
             Action::DeleteEpic { epic_id } => {
-                todo!() // prompt the user to delete the epic and persist it in the database
+                self.db.delete_epic(epic_id)?;
             }
             Action::CreateStory { epic_id } => {
-                todo!() // prompt the user to create a new story and persist it in the database
+                let story = (self.prompts.create_story)();
+                self.db.create_story(story, epic_id).map_err(|_| anyhow!("Failed to create epic"))?;
             }
             Action::UpdateStoryStatus { story_id } => {
-                todo!() // prompt the user to update status and persist it in the database
+                let status = (self.prompts.update_status)().ok_or(anyhow!("Failed to get user prompt - story status update"))?;
+                self.db.update_story_status(story_id, status).map_err(|_| anyhow!("Failed to update story status"))?;
             }
             Action::DeleteStory { epic_id, story_id } => {
-                todo!() // prompt the user to delete the story and persist it in the database
+                self.db.delete_story(epic_id, story_id)?;
             }
             Action::Exit => {
-                todo!() // remove all pages from the pages vector
+                self.pages.clear();
             },
         }
 
