@@ -95,9 +95,12 @@ impl Page for EpicDetail {
         println!("     id     |               name               |      status      ");
 
         let stories = &db_state.stories;
+        let story_keys = &epic.stories;
 
         // Sort stories by id and print
-        let sorted_keys = sorted(stories.keys());
+        let sorted_keys = stories.keys()
+            .filter(|x| story_keys.contains(x))
+            .sorted();
 
         sorted_keys.for_each(|key| {
             let story_info = &stories.get(key).ok_or(anyhow!("Invalid key")).unwrap();

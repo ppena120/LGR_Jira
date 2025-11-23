@@ -53,7 +53,12 @@ impl Navigator {
                 self.db.update_epic_status(epic_id, status).map_err(|_| anyhow!("Failed to update epic status"))?;
             }
             Action::DeleteEpic { epic_id } => {
-                self.db.delete_epic(epic_id)?;
+                let confirmation = (self.prompts.delete_epic)();
+
+                if confirmation {
+                    self.db.delete_epic(epic_id)?;
+                    self.pages.pop();
+                }
             }
             Action::CreateStory { epic_id } => {
                 let story = (self.prompts.create_story)();
@@ -64,7 +69,12 @@ impl Navigator {
                 self.db.update_story_status(story_id, status).map_err(|_| anyhow!("Failed to update story status"))?;
             }
             Action::DeleteStory { epic_id, story_id } => {
-                self.db.delete_story(epic_id, story_id)?;
+                let confirmation = (self.prompts.delete_story)();
+
+                if confirmation {
+                    self.db.delete_story(epic_id, story_id)?;
+                    self.pages.pop();
+                }
             }
             Action::Exit => {
                 self.pages.clear();
